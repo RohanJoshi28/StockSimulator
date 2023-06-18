@@ -79,36 +79,38 @@ def calculate_total_assets(email):
         st.session_state["total_assets"] = str(total_assets)
     return total_assets
 
-def buy_stock(user_email, stock_ticker):
+def buy_stock(user_email, stock_ticker, num_buy_shares):
+    num_buy_shares = int(num_buy_shares)
     user_file = open(f"./user_assets/{user_email}", "r")
     user_file_json = json.loads(user_file.read())
     total_cash = user_file_json["total_cash"]
-    stock_value = get_stock_value(stock_ticker)
-    if stock_value > total_cash:
+    stock_value = get_stock_value(stock_ticker) * num_buy_shares
+    if stock_value >= total_cash:
         st.session_state["not_enough_cash"] = True
     else:
         st.session_state["not_enough_cash"] = False
         total_cash -= stock_value
         user_file_json["total_cash"] = total_cash
         if stock_ticker in user_file_json["stocks"]:
-            user_file_json["stocks"][stock_ticker] += 1
+            user_file_json["stocks"][stock_ticker] += num_buy_shares
         else:
-            user_file_json["stocks"][stock_ticker] = 1
+            user_file_json["stocks"][stock_ticker] = num_buy_shares
         user_file.close()
         user_file = open(f"./user_assets/{user_email}", "w+")
         user_file.write(json.dumps(user_file_json))
         user_file.close()
 
-def sell_stock(user_email, stock_ticker):
+def sell_stock(user_email, stock_ticker, num_sell_shares):
+    num_sell_shares = int(num_sell_shares)
     user_file = open(f"./user_assets/{user_email}", "r")
     user_file_json = json.loads(user_file.read())
     total_cash = user_file_json["total_cash"]
-    stock_value = get_stock_value(stock_ticker)
-    if stock_ticker in user_file_json["stocks"] and user_file_json["stocks"][stock_ticker] > 0:
+    stock_value = get_stock_value(stock_ticker) * num_sell_shares
+    if stock_ticker in user_file_json["stocks"] and user_file_json["stocks"][stock_ticker] >= num_sell_shares:
         st.session_state["not_enough_stock"] = False
         total_cash += stock_value
         user_file_json["total_cash"] = total_cash
-        user_file_json["stocks"][stock_ticker] -= 1
+        user_file_json["stocks"][stock_ticker] -= num_sell_shares
         user_file.close()
         user_file = open(f"./user_assets/{user_email}", "w+")
         user_file.write(json.dumps(user_file_json))
@@ -163,17 +165,27 @@ if login_info:
             # Display the chart in Streamlit
             st.altair_chart(chart, use_container_width=True)
 
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3, col4, col5 = st.columns(5)
             with col2:
-                pass
+                num_buy_shares = st.text_input('Shares', "1", key="buy_shares")
+                buy_disable = not num_buy_shares.isdigit()
+
             with col1:
-                st.button(f"Buy {stock_ticker}", type="primary", on_click=buy_stock, args=(user_email, stock_ticker,))
+                st.button(f"Buy {stock_ticker}", type="primary", on_click=buy_stock, args=(user_email, stock_ticker,num_buy_shares,), disabled=buy_disable)
+            if buy_disable:
+                st.warning("Please enter a valid share number for buying")
+
+            with col5:
+                num_sell_shares = st.text_input('Shares', "1", key="sell_shares")
+                sell_disable = not num_sell_shares.isdigit()
             
             if stock_ticker in user_file_parsed["stocks"].keys():
                 with col4:
-                    st.button(f"Sell {stock_ticker}", type="primary", on_click=sell_stock, args=(user_email, stock_ticker))
-            with col3:
-                pass
+                    st.button(f"Sell {stock_ticker}", type="primary", on_click=sell_stock, args=(user_email, stock_ticker, num_sell_shares,), disabled=sell_disable)
+            if sell_disable:
+                st.warning("Please enter a valid share number for selling")
+                
+
 
             if "not_enough_cash" in st.session_state and st.session_state["not_enough_cash"] == True:
                 st.warning("You do not have enough cash to buy this stock.")
