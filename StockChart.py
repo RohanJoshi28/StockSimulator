@@ -11,28 +11,38 @@ import os
 import yfinance as yahooFinance
 from streamlit_option_menu import option_menu
 import pyrebase
-
+import streamlit_authenticator as stauth
+import yaml
+from yaml.loader import SafeLoader
 
 exchange_df = pd.read_csv("stock_exchange.csv", index_col=0).to_dict('index')
 
 load_dotenv()
-client_id = os.environ["GOOGLE_CLIENT_ID"]
-client_secret = os.environ["GOOGLE_CLIENT_SECRET"]
-redirect_uri = os.environ["GOOGLE_REDIRECT_URI"]
-
 api_key = os.environ["FIREBASE_API_KEY"]
 auth_domain = os.environ["FIREBASE_AUTH_DOMAIN"]
 database_url = os.environ["FIREBASE_DATABASE_URL"]
 storage_bucket = os.environ["FIREBASE_STORAGE_BUCKET"]
 
-config = {
+firebase_config = {
   "apiKey": api_key,
   "authDomain": auth_domain,
   "databaseURL": database_url,
   "storageBucket": storage_bucket
 }
-firebase = pyrebase.initialize_app(config)
+firebase = pyrebase.initialize_app(firebase_config)
 storage = firebase.storage()
+
+storage.child(f"config.yaml").download(path="gs://stock-storage-54197.appspot.com/", filename=f"config.yaml")
+with open('./config.yaml') as file:
+    config = yaml.load(file, Loader=SafeLoader)
+
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days'],
+    config['preauthorized']
+)
 
 total_assets = {}
 
@@ -176,14 +186,31 @@ def load_data(rank, email, total_assets):
     )
 
 
-login_info = oauth.login(
-    client_id=client_id,
-    client_secret=client_secret,
-    redirect_uri=redirect_uri,
-    logout_button_text="Logout",
-)
-if login_info:
-    user_id, user_email = login_info
+placeholder = st.empty()
+if ("authentication_status" not in st.session_state) or (st.session_state["authentication_status"] is None):
+    login_type = placeholder.selectbox('Login or Register', ('Login', 'Register'))
+    st.session_state["login_type"] = login_type
+
+if "login_type" not in st.session_state:
+    st.session_state["login_type"] = "Login"
+    
+if st.session_state["login_type"] == "Register":
+    authentication_status = None
+    if authenticator.register_user('Register user', preauthorization=False):
+        st.success('User registered successfully')
+        with open('./config.yaml', 'w') as file:
+            yaml.dump(config, file, default_flow_style=False)
+        storage.child(f"config.yaml").put(f"./config.yaml")
+
+else:
+    name, authentication_status, username = authenticator.login('Login', 'main') 
+    st.session_state["authentication_status"] = authentication_status
+    print("Ok set")
+
+if authentication_status:
+    placeholder.empty()
+    user_id, user_email = name, username
+    authenticator.logout('Logout', 'main', key='unique_key')
     try:
         storage.child(f"user_assets/{user_email}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{user_email}")
         user_file = open(f"./user_assets/{user_email}", "r")
@@ -209,7 +236,7 @@ if login_info:
     )
     
     if selected == "Home":
-        st.write(f"Welcome {user_email}. Total cash: {user_file_parsed['total_cash']}.")
+        st.write(f"Welcome {user_id}. Total cash: {user_file_parsed['total_cash']}.")
         st.subheader("Buy and sell stock on demand")
         stock_ticker = st.text_input('Enter your stock ticker', '')
 
@@ -318,4 +345,7 @@ if login_info:
             use_container_width=True,
             hide_index=True
         )
+elif authentication_status == False:
+    st.error("Username/password is incorrect")
+
     

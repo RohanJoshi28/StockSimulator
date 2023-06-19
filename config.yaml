@@ -1,0 +1,26 @@
+cookie:
+  expiry_days: 30
+  key: nLcPWLZrHwDgIVYi2OjJ
+  name: Ta1SCo88dBTmVylaP5Ai
+credentials:
+  usernames:
+    daringduck:
+      email: daringduck@gmail.com
+      name: daringduck
+      password: $2b$12$yXbhUpGx.0MhdzF.6jaKg.hdQ88dFXBadzm.0IeA.RFC8tUMKmhr6
+    joshkim771@gmail.com:
+      name: joshkim771@gmail.com
+      password: $2b$12$Bbbf9V8.L5E1N5EDuDAlb.LfHpYJx4SxtYs/Fj3LMy6x8wg6aPIRK
+    joskim:
+      email: joskim24@bergen.org
+      name: Joshua Kim
+      password: $2b$12$H6C0RobLvmehzJiO3pedmegMsp4a3PQ/ATYtLkR9LXABdCcfP0kHC
+    rjoshi6@gmail.com:
+      name: rjoshi6@gmail.com
+      password: $2b$12$Bbbf9V8.L5E1N5EDuDAlb.LfHpYJx4SxtYs/Fj3LMy6x8wg6aPIRK
+    rohjos24:
+      email: rohjos24@bergen.org
+      name: Rohan Joshi
+      password: $2b$12$pLqEhN3cVcZSPQLADiElPeNyQaJ2x9AtgBLHSF5t.E5Oe3R2n6XkO
+preauthorized:
+  emails: null
