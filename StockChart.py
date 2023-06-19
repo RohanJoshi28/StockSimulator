@@ -10,6 +10,9 @@ import streamlit_google_oauth as oauth
 import os
 import yfinance as yahooFinance
 from streamlit_option_menu import option_menu
+import pyrebase
+
+
 exchange_df = pd.read_csv("stock_exchange.csv", index_col=0).to_dict('index')
 
 load_dotenv()
@@ -17,7 +20,22 @@ client_id = os.environ["GOOGLE_CLIENT_ID"]
 client_secret = os.environ["GOOGLE_CLIENT_SECRET"]
 redirect_uri = os.environ["GOOGLE_REDIRECT_URI"]
 
+api_key = os.environ["FIREBASE_API_KEY"]
+auth_domain = os.environ["FIREBASE_AUTH_DOMAIN"]
+database_url = os.environ["FIREBASE_DATABASE_URL"]
+storage_bucket = os.environ["FIREBASE_STORAGE_BUCKET"]
+
+config = {
+  "apiKey": api_key,
+  "authDomain": auth_domain,
+  "databaseURL": database_url,
+  "storageBucket": storage_bucket
+}
+firebase = pyrebase.initialize_app(config)
+storage = firebase.storage()
+
 total_assets = {}
+
 def scrape_google_data(ticker, interval):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36"
@@ -83,6 +101,7 @@ def create_price_dataframe(data, interval):
 
 def calculate_total_assets(email):
     total_assets = None
+    storage.child(f"user_assets/{email}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{email}")
     user_file = open(f"./user_assets/{email}", "r")
     user_file_json = json.loads(user_file.read())
     total_assets = user_file_json["total_cash"]
@@ -95,6 +114,7 @@ def calculate_total_assets(email):
 
 def buy_stock(user_email, stock_ticker, num_buy_shares):
     num_buy_shares = int(num_buy_shares)
+    storage.child(f"user_assets/{user_email}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{user_email}")
     user_file = open(f"./user_assets/{user_email}", "r")
     user_file_json = json.loads(user_file.read())
     total_cash = user_file_json["total_cash"]
@@ -113,9 +133,11 @@ def buy_stock(user_email, stock_ticker, num_buy_shares):
         user_file = open(f"./user_assets/{user_email}", "w+")
         user_file.write(json.dumps(user_file_json))
         user_file.close()
+        storage.child(f"user_assets/{user_email}").put(f"./user_assets/{user_email}")
 
 def sell_stock(user_email, stock_ticker, num_sell_shares):
     num_sell_shares = int(num_sell_shares)
+    storage.child(f"user_assets/{user_email}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{user_email}")
     user_file = open(f"./user_assets/{user_email}", "r")
     user_file_json = json.loads(user_file.read())
     total_cash = user_file_json["total_cash"]
@@ -128,6 +150,8 @@ def sell_stock(user_email, stock_ticker, num_sell_shares):
         user_file.close()
         user_file = open(f"./user_assets/{user_email}", "w+")
         user_file.write(json.dumps(user_file_json))
+        user_file.close()
+        storage.child(f"user_assets/{user_email}").put(f"./user_assets/{user_email}")
     else:
         st.session_state["not_enough_stock"] = True
 
@@ -161,6 +185,7 @@ login_info = oauth.login(
 if login_info:
     user_id, user_email = login_info
     try:
+        storage.child(f"user_assets/{user_email}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{user_email}")
         user_file = open(f"./user_assets/{user_email}", "r")
     except:
         user_file = open(f"./user_assets/{user_email}", "w+")
@@ -169,6 +194,7 @@ if login_info:
         user_info["stocks"] = {}
         user_file.write(json.dumps(user_info))
         user_file.close()
+        storage.child(f"user_assets/{user_email}").put(f"./user_assets/{user_email}")
         user_file = open(f"./user_assets/{user_email}", "r")
 
     user_file_parsed = json.loads(user_file.read())
