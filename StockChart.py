@@ -48,7 +48,7 @@ def get_stock_value(ticker):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36"
     }
 
-    html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[stock_ticker]['Exchange']}", headers=headers, timeout=30)
+    html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[ticker]['Exchange']}", headers=headers, timeout=30)
 
     soup = BeautifulSoup(html.text, 'html.parser')
 
