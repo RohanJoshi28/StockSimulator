@@ -119,6 +119,14 @@ def sell_stock(user_email, stock_ticker, num_sell_shares):
         st.session_state["not_enough_stock"] = True
 
 
+def get_total_assets(email):
+    total_assets = {}
+    
+    for email in os.listdir("./user_assets"):
+        total_assets[email] = calculate_total_assets(email)
+    return total_assets.get(email, 0)
+
+
 login_info = oauth.login(
     client_id=client_id,
     client_secret=client_secret,
@@ -235,6 +243,17 @@ if login_info:
 
         if "total_assets" in st.session_state:
             st.write(f"Total assets: {st.session_state['total_assets']}")
+            
     if selected == "Leaderboard":
-        st.title(f"Leaderboard")
     
+        st.title(f"Leaderboard")
+        emails = []
+     
+        for email in os.listdir("./user_assets"):
+            print(calculate_total_assets(email))
+            emails.append(email)
+            
+        sorted_emails = sorted(emails, key=get_total_assets)
+        print(sorted_emails)
+        
+        
