@@ -51,7 +51,10 @@ def scrape_google_data(ticker, interval):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36"
     }
 
-    html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[stock_ticker]['Exchange']}", headers=headers, timeout=30)
+    if interval == "one month":
+        html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[stock_ticker]['Exchange']}?window=1M", headers=headers, timeout=30)
+    else:
+        html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[stock_ticker]['Exchange']}", headers=headers, timeout=30)
 
     soup = BeautifulSoup(html.text, 'html.parser')
 
@@ -59,7 +62,7 @@ def scrape_google_data(ticker, interval):
     max_script = None
     replaced_max_script = None
     for script in soup.find_all("script"):
-        if ("USD" in str(script) and ticker in str(script)):
+        if ("USD" in str(script) and f'["{ticker}","{exchange_df[stock_ticker]["Exchange"]}"]' in str(script)):
             if len(str(script)) > max_length:
                 replaced_max_script = max_script
                 max_script = str(script)
@@ -68,7 +71,7 @@ def scrape_google_data(ticker, interval):
     if interval == "one month":
         #months is the script tag with the second longest length
         max_script = replaced_max_script
-
+        
     data = json.loads(max_script[int(max_script.index("[")):int(max_script.rfind("]")+1)])[0][0][3][0][1:][0]
     return data
 
@@ -84,7 +87,7 @@ def get_stock_value(ticker):
     max_length = float("-inf")
     max_script = None
     for script in soup.find_all("script"):
-        if ("USD" in str(script) and ticker in str(script)):
+        if ("USD" in str(script) and f'["{ticker}","{exchange_df[ticker]["Exchange"]}"]' in str(script)):
             if len(str(script)) > max_length:
                 max_script = str(script)
                 max_length = len(str(script))
@@ -205,7 +208,6 @@ if st.session_state["login_type"] == "Register":
 else:
     name, authentication_status, username = authenticator.login('Login', 'main') 
     st.session_state["authentication_status"] = authentication_status
-    print("Ok set")
 
 if authentication_status:
     placeholder.empty()
