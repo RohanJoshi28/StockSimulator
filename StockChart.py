@@ -8,6 +8,7 @@ import numpy as np
 from dotenv import load_dotenv
 import streamlit_google_oauth as oauth
 import os
+import yfinance as yahooFinance
 
 exchange_df = pd.read_csv("stock_exchange.csv", index_col=0).to_dict('index')
 
@@ -146,6 +147,30 @@ if login_info:
         if stock_ticker not in exchange_df:
             st.warning("Stock ticker does not exist in NYSE or NASDAQ")
         else:
+            with st.sidebar:
+                st.subheader("Stock Statistics")
+                st.markdown(f'''
+                <style>
+                    section[data-testid="stSidebar"] .css-ng1t4o {{width: 14rem;}}
+                    section[data-testid="stSidebar"] .css-1d391kg {{width: 14rem;}}
+                </style>
+                ''',unsafe_allow_html=True)
+                ticker_data = yahooFinance.Ticker(stock_ticker).info
+                st.text(f"Market Cap: {ticker_data['marketCap']}")
+                st.divider()
+                st.text(f"PE ratio: (TTM): {round(float(ticker_data['trailingPE']), 2)}")
+                st.divider()
+                st.text(f"Beta (5Y Monthly): {round(float(ticker_data['beta']), 2)}")
+                st.divider()
+                st.text(f"Open: {round(float(ticker_data['open']), 2)}")
+                st.divider()
+                st.text(f"Previous Close: {round(float(ticker_data['previousClose']), 2)}")
+                st.divider()
+                st.text(f"Volume: {ticker_data['volume']}")
+                st.divider()
+                st.text(f"Average Volume: {ticker_data['averageVolume']}")
+
+
             df = create_price_dataframe(scrape_google_data(stock_ticker))
 
             # Define the lower and upper y bounds
@@ -193,6 +218,8 @@ if login_info:
             if "not_enough_stock" in st.session_state and st.session_state["not_enough_stock"] == True:
                 st.warning("You don't have any stock, so you cannot sell")
 
+    st.text("")
+    st.text("")
     st.button("Calculate total assets", on_click=calculate_total_assets, args=(user_email,))
 
     if "total_assets" in st.session_state:
