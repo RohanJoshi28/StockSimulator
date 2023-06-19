@@ -52,26 +52,23 @@ def scrape_google_data(ticker, interval):
     }
 
     if interval == "one month":
-        html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[stock_ticker]['Exchange']}?window=1M", headers=headers, timeout=30)
+        html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[ticker]['Exchange']}?window=1M", headers=headers, timeout=30)
     else:
-        html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[stock_ticker]['Exchange']}", headers=headers, timeout=30)
+        html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[ticker]['Exchange']}", headers=headers, timeout=30)
 
     soup = BeautifulSoup(html.text, 'html.parser')
 
-    max_length = float("-inf")
-    max_script = None
-    replaced_max_script = None
+    valid_scripts = []
     for script in soup.find_all("script"):
-        if ("USD" in str(script) and f'["{ticker}","{exchange_df[stock_ticker]["Exchange"]}"]' in str(script)):
-            if len(str(script)) > max_length:
-                replaced_max_script = max_script
-                max_script = str(script)
-                max_length = len(str(script))
-
+        str_script = str(script)
+        if ("USD" in str_script and ((f'[[[["{ticker}","{exchange_df[ticker]["Exchange"]}"]' in str_script) or (f"[[[['{ticker}','{exchange_df[ticker]['Exchange']}']" in str(script)) or (f"[[[['{ticker}', '{exchange_df[ticker]['Exchange']}']" in str_script) or (f'[[[["{ticker}", "{exchange_df[ticker]["Exchange"]}"]' in str_script))):
+            valid_scripts.append(str_script)
+    valid_scripts.sort(key=len)
     if interval == "one month":
         #months is the script tag with the second longest length
-        max_script = replaced_max_script
-        
+        max_script = valid_scripts[-2]
+    elif interval == "one day":
+        max_script = valid_scripts[-1]
     data = json.loads(max_script[int(max_script.index("[")):int(max_script.rfind("]")+1)])[0][0][3][0][1:][0]
     return data
 
@@ -87,7 +84,7 @@ def get_stock_value(ticker):
     max_length = float("-inf")
     max_script = None
     for script in soup.find_all("script"):
-        if ("USD" in str(script) and f'["{ticker}","{exchange_df[ticker]["Exchange"]}"]' in str(script)):
+        if ("USD" in str(script) and ((f'[[[["{ticker}","{exchange_df[ticker]["Exchange"]}"]' in str(script)) or (f"[[[['{ticker}','{exchange_df[ticker]['Exchange']}']" in str(script)) or (f"[[[['{ticker}', '{exchange_df[ticker]['Exchange']}']" in str(script)) or (f'[[[["{ticker}", "{exchange_df[ticker]["Exchange"]}"]' in str(script)))):
             if len(str(script)) > max_length:
                 max_script = str(script)
                 max_length = len(str(script))
@@ -109,7 +106,7 @@ def create_price_dataframe(data, interval):
         })
         
     df['datetime'] = pd.to_datetime(df['datetime'])
-    #df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M')
+    df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M')
     return df
 
 def calculate_total_assets(email):
@@ -328,25 +325,38 @@ if authentication_status:
     if selected == "Leaderboard":
     
         st.title(f"Leaderboard")
-        emails = []
 
-        for email in os.listdir("./user_assets"):        
-            emails.append(email)
-            
-        sorted_emails = sorted(emails, key=get_total_assets)
+        storage.child(f"config.yaml").download(path="gs://stock-storage-54197.appspot.com/", filename=f"config.yaml")
+        with open('./config.yaml') as file:
+            config = yaml.load(file, Loader=SafeLoader)
         
-        total_assets_lst = []
-        for email in sorted_emails:
-            total_assets_lst.append(total_assets[email])
-        
-        rank = list(range(1, len(emails) + 1))
+        usernames = list(config["credentials"]["usernames"].keys())
+        user_assets = []
+        for username in usernames:
+            try:    
+                storage.child(f"user_assets/{username}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{username}")
+                assets = calculate_total_assets(f"./user_assets/{username}")
+                user_assets.append([username, assets])
+            except Exception as e:
+                user_assets.append([username, 100000])
+
+        sorted_user_assets = sorted(user_assets, key=lambda user_asset: user_asset[1])
+
+        ranked_usernames = []
+        ranked_assets = []
+        for user_asset in sorted_user_assets:
+            ranked_usernames.append(user_asset[0])
+            ranked_assets.append(user_asset[1])
+
+        rank = list(range(1, len(sorted_user_assets) + 1))
         st.subheader(f"Leaderboard 🎉")
-        df = load_data(rank, emails, total_assets_lst)
+        df = load_data(rank, ranked_usernames, ranked_assets)
         st.dataframe(
             df, 
             use_container_width=True,
             hide_index=True
         )
+        
 elif authentication_status == False:
     st.error("Username/password is incorrect")
 
