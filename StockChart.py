@@ -17,6 +17,7 @@ client_id = os.environ["GOOGLE_CLIENT_ID"]
 client_secret = os.environ["GOOGLE_CLIENT_SECRET"]
 redirect_uri = os.environ["GOOGLE_REDIRECT_URI"]
 
+total_assets = {}
 def scrape_google_data(ticker, interval):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36"
@@ -132,11 +133,23 @@ def sell_stock(user_email, stock_ticker, num_sell_shares):
 
 
 def get_total_assets(email):
-    total_assets = {}
-    
+
+
     for email in os.listdir("./user_assets"):
         total_assets[email] = calculate_total_assets(email)
+       
     return total_assets.get(email, 0)
+
+
+def load_data(rank, email, total_assets):
+
+    return pd.DataFrame(
+        {
+            "Rank 🏅": rank,
+            "Email 📧": email,
+            "Total Assets 💵": total_assets,
+        }
+    )
 
 
 login_info = oauth.login(
@@ -261,14 +274,22 @@ if login_info:
     
         st.title(f"Leaderboard")
         emails = []
-     
-        for email in os.listdir("./user_assets"):
-            print(calculate_total_assets(email))
-        #     # emails.append(email)
+
+        for email in os.listdir("./user_assets"):        
+            emails.append(email)
             
-        # # sorted_emails = sorted(emails, key=get_total_assets)
-        # # print(sorted_emails)
+        sorted_emails = sorted(emails, key=get_total_assets)
         
+        total_assets_lst = []
+        for email in sorted_emails:
+            total_assets_lst.append(total_assets[email])
         
+        rank = list(range(1, len(emails) + 1))
         st.subheader(f"Leaderboard 🎉")
+        df = load_data(rank, emails, total_assets_lst)
+        st.dataframe(
+            df, 
+            use_container_width=True,
+            hide_index=True
+        )
     
