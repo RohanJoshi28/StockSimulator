@@ -163,7 +163,7 @@ if login_info:
     
     if selected == "Home":
         st.write(f"Welcome {user_email}. Total cash: {user_file_parsed['total_cash']}.")
-        st.title("Buy and sell stock on demand")
+        st.subheader("Buy and sell stock on demand")
         stock_ticker = st.text_input('Enter your stock ticker', '')
 
         if stock_ticker!="":
@@ -209,7 +209,7 @@ if login_info:
                 ).interactive()
 
                 #streamlit title
-                st.title(stock_ticker)
+                st.subheader(stock_ticker)
 
                 # Display the chart in Streamlit
                 st.altair_chart(chart, use_container_width=True)
@@ -249,5 +249,5 @@ if login_info:
         if "total_assets" in st.session_state:
             st.write(f"Total assets: {st.session_state['total_assets']}")
     if selected == "Leaderboard":
-        st.title(f"Leaderboard")
+        st.subheader(f"Leaderboard 🎉")
     
