@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 import streamlit_google_oauth as oauth
 import os
 import yfinance as yahooFinance
-
+from streamlit_option_menu import option_menu
 exchange_df = pd.read_csv("stock_exchange.csv", index_col=0).to_dict('index')
 
 load_dotenv()
@@ -139,88 +139,102 @@ if login_info:
         user_file = open(f"./user_assets/{user_email}", "r")
 
     user_file_parsed = json.loads(user_file.read())
-    st.write(f"Welcome {user_email}. Total cash: {user_file_parsed['total_cash']}.")
-    st.title("Buy and sell stock on demand")
-    stock_ticker = st.text_input('Enter your stock ticker', '')
+    
+    selected = option_menu(
+        menu_title="StockSimulator",
+        options=["Home", "Leaderboard"],
+        icons=["house", "clipboard-data-fill"],
+        menu_icon="currency-exchange",
+        default_index=0,
+        orientation="horizontal",
+    )
+    
+    if selected == "Home":
+        st.write(f"Welcome {user_email}. Total cash: {user_file_parsed['total_cash']}.")
+        st.title("Buy and sell stock on demand")
+        stock_ticker = st.text_input('Enter your stock ticker', '')
 
-    if stock_ticker!="":
-        if stock_ticker not in exchange_df:
-            st.warning("Stock ticker does not exist in NYSE or NASDAQ")
-        else:
-            with st.sidebar:
-                st.subheader("Stock Statistics")
-                st.markdown(f'''
-                <style>
-                    section[data-testid="stSidebar"] .css-ng1t4o {{width: 14rem;}}
-                    section[data-testid="stSidebar"] .css-1d391kg {{width: 14rem;}}
-                </style>
-                ''',unsafe_allow_html=True)
-                ticker_data = yahooFinance.Ticker(stock_ticker).info
-                st.text(f"Market Cap: {ticker_data['marketCap']}")
-                st.divider()
-                st.text(f"PE ratio: (TTM): {round(float(ticker_data['trailingPE']), 2)}")
-                st.divider()
-                st.text(f"Beta (5Y Monthly): {round(float(ticker_data['beta']), 2)}")
-                st.divider()
-                st.text(f"Open: {round(float(ticker_data['open']), 2)}")
-                st.divider()
-                st.text(f"Previous Close: {round(float(ticker_data['previousClose']), 2)}")
-                st.divider()
-                st.text(f"Volume: {ticker_data['volume']}")
-                st.divider()
-                st.text(f"Average Volume: {ticker_data['averageVolume']}")
+        if stock_ticker!="":
+            if stock_ticker not in exchange_df:
+                st.warning("Stock ticker does not exist in NYSE or NASDAQ")
+            else:
+                with st.sidebar:
+                    st.subheader("Stock Statistics")
+                    st.markdown(f'''
+                    <style>
+                        section[data-testid="stSidebar"] .css-ng1t4o {{width: 14rem;}}
+                        section[data-testid="stSidebar"] .css-1d391kg {{width: 14rem;}}
+                    </style>
+                    ''',unsafe_allow_html=True)
+                    ticker_data = yahooFinance.Ticker(stock_ticker).info
+                    st.text(f"Market Cap: {ticker_data['marketCap']}")
+                    st.divider()
+                    st.text(f"PE ratio: (TTM): {round(float(ticker_data['trailingPE']), 2)}")
+                    st.divider()
+                    st.text(f"Beta (5Y Monthly): {round(float(ticker_data['beta']), 2)}")
+                    st.divider()
+                    st.text(f"Open: {round(float(ticker_data['open']), 2)}")
+                    st.divider()
+                    st.text(f"Previous Close: {round(float(ticker_data['previousClose']), 2)}")
+                    st.divider()
+                    st.text(f"Volume: {ticker_data['volume']}")
+                    st.divider()
+                    st.text(f"Average Volume: {ticker_data['averageVolume']}")
 
 
-            df = create_price_dataframe(scrape_google_data(stock_ticker))
+                df = create_price_dataframe(scrape_google_data(stock_ticker))
 
-            # Define the lower and upper y bounds
-            ymin = np.floor(df['price'].min())
-            ymax = np.ceil(df['price'].max())
+                # Define the lower and upper y bounds
+                ymin = np.floor(df['price'].min())
+                ymax = np.ceil(df['price'].max())
 
-            # Create the chart
-            chart = alt.Chart(df).mark_line().encode(
-                x='datetime:T',
-                y=alt.Y('price:Q', scale=alt.Scale(domain=(ymin, ymax))),
-                tooltip=['datetime:T', 'price:Q']
-            ).interactive()
+                # Create the chart
+                chart = alt.Chart(df).mark_line().encode(
+                    x='datetime:T',
+                    y=alt.Y('price:Q', scale=alt.Scale(domain=(ymin, ymax))),
+                    tooltip=['datetime:T', 'price:Q']
+                ).interactive()
 
-            #streamlit title
-            st.title(stock_ticker)
+                #streamlit title
+                st.title(stock_ticker)
 
-            # Display the chart in Streamlit
-            st.altair_chart(chart, use_container_width=True)
+                # Display the chart in Streamlit
+                st.altair_chart(chart, use_container_width=True)
 
-            col1, col2, col3, col4, col5 = st.columns(5)
-            with col2:
-                num_buy_shares = st.text_input('Shares', "1", key="buy_shares")
-                buy_disable = not num_buy_shares.isdigit()
+                col1, col2, col3, col4, col5 = st.columns(5)
+                with col2:
+                    num_buy_shares = st.text_input('Shares', "1", key="buy_shares")
+                    buy_disable = not num_buy_shares.isdigit()
 
-            with col1:
-                st.button(f"Buy {stock_ticker}", type="primary", on_click=buy_stock, args=(user_email, stock_ticker,num_buy_shares,), disabled=buy_disable)
-            if buy_disable:
-                st.warning("Please enter a valid share number for buying")
+                with col1:
+                    st.button(f"Buy {stock_ticker}", type="primary", on_click=buy_stock, args=(user_email, stock_ticker,num_buy_shares,), disabled=buy_disable)
+                if buy_disable:
+                    st.warning("Please enter a valid share number for buying")
 
-            with col5:
-                num_sell_shares = st.text_input('Shares', "1", key="sell_shares")
-                sell_disable = not num_sell_shares.isdigit()
-            
-            if stock_ticker in user_file_parsed["stocks"].keys():
-                with col4:
-                    st.button(f"Sell {stock_ticker}", type="primary", on_click=sell_stock, args=(user_email, stock_ticker, num_sell_shares,), disabled=sell_disable)
-            if sell_disable:
-                st.warning("Please enter a valid share number for selling")
+                with col5:
+                    num_sell_shares = st.text_input('Shares', "1", key="sell_shares")
+                    sell_disable = not num_sell_shares.isdigit()
                 
+                if stock_ticker in user_file_parsed["stocks"].keys():
+                    with col4:
+                        st.button(f"Sell {stock_ticker}", type="primary", on_click=sell_stock, args=(user_email, stock_ticker, num_sell_shares,), disabled=sell_disable)
+                if sell_disable:
+                    st.warning("Please enter a valid share number for selling")
+                    
 
 
-            if "not_enough_cash" in st.session_state and st.session_state["not_enough_cash"] == True:
-                st.warning("You do not have enough cash to buy this stock.")
+                if "not_enough_cash" in st.session_state and st.session_state["not_enough_cash"] == True:
+                    st.warning("You do not have enough cash to buy this stock.")
 
-            if "not_enough_stock" in st.session_state and st.session_state["not_enough_stock"] == True:
-                st.warning("You don't have any stock, so you cannot sell")
+                if "not_enough_stock" in st.session_state and st.session_state["not_enough_stock"] == True:
+                    st.warning("You don't have any stock, so you cannot sell")
 
-    st.text("")
-    st.text("")
-    st.button("Calculate total assets", on_click=calculate_total_assets, args=(user_email,))
+        st.text("")
+        st.text("")
+        st.button("Calculate total assets", on_click=calculate_total_assets, args=(user_email,))
 
-    if "total_assets" in st.session_state:
-        st.write(f"Total assets: {st.session_state['total_assets']}")
+        if "total_assets" in st.session_state:
+            st.write(f"Total assets: {st.session_state['total_assets']}")
+    if selected == "Leaderboard":
+        st.title(f"Leaderboard")
+    
