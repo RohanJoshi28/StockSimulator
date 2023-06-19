@@ -153,7 +153,7 @@ if login_info:
     user_file_parsed = json.loads(user_file.read())
     
     selected = option_menu(
-        menu_title="StockSimulator",
+        menu_title="InvestSimulator",
         options=["Home", "Leaderboard"],
         icons=["house", "clipboard-data-fill"],
         menu_icon="currency-exchange",
