@@ -17,7 +17,7 @@ client_id = os.environ["GOOGLE_CLIENT_ID"]
 client_secret = os.environ["GOOGLE_CLIENT_SECRET"]
 redirect_uri = os.environ["GOOGLE_REDIRECT_URI"]
 
-def scrape_google_data(ticker):
+def scrape_google_data(ticker, interval):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36"
     }
@@ -28,11 +28,17 @@ def scrape_google_data(ticker):
 
     max_length = float("-inf")
     max_script = None
+    replaced_max_script = None
     for script in soup.find_all("script"):
         if ("USD" in str(script) and ticker in str(script)):
             if len(str(script)) > max_length:
+                replaced_max_script = max_script
                 max_script = str(script)
                 max_length = len(str(script))
+
+    if interval == "one month":
+        #months is the script tag with the second longest length
+        max_script = replaced_max_script
 
     data = json.loads(max_script[int(max_script.index("[")):int(max_script.rfind("]")+1)])[0][0][3][0][1:][0]
     return data
@@ -57,15 +63,21 @@ def get_stock_value(ticker):
     price = json.loads(max_script[int(max_script.index("[")):int(max_script.rfind("]")+1)])[0][0][3][0][1:][0][-1][1][0]
     return float(price)
 
-def create_price_dataframe(data):
+def create_price_dataframe(data, interval):
+    if interval == "one day":
     # Convert your data to a DataFrame
-    df = pd.DataFrame({
-        'datetime': [pd.Timestamp(year=d[0][0], month=d[0][1], day=d[0][2], hour=d[0][3], minute=d[0][4]) for d in data],
-        'price': [d[1][0] for d in data],
-    })
-
+        df = pd.DataFrame({
+            'datetime': [pd.Timestamp(year=d[0][0], month=d[0][1], day=d[0][2], hour=d[0][3], minute=d[0][4]) for d in data],
+            'price': [d[1][0] for d in data],
+        })
+    elif interval == "one month":
+        df = pd.DataFrame({
+            'datetime': [pd.Timestamp(year=d[0][0], month=d[0][1], day=d[0][2]) for d in data],
+            'price': [d[1][0] for d in data],
+        })
+        
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M')
+    #df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M')
     return df
 
 def calculate_total_assets(email):
@@ -149,7 +161,7 @@ if login_info:
     user_file_parsed = json.loads(user_file.read())
     
     selected = option_menu(
-        menu_title="StockSimulator",
+        menu_title="InvestSimulator",
         options=["Home", "Leaderboard"],
         icons=["house", "clipboard-data-fill"],
         menu_icon="currency-exchange",
@@ -159,7 +171,7 @@ if login_info:
     
     if selected == "Home":
         st.write(f"Welcome {user_email}. Total cash: {user_file_parsed['total_cash']}.")
-        st.title("Buy and sell stock on demand")
+        st.subheader("Buy and sell stock on demand")
         stock_ticker = st.text_input('Enter your stock ticker', '')
 
         if stock_ticker!="":
@@ -189,8 +201,9 @@ if login_info:
                     st.divider()
                     st.text(f"Average Volume: {ticker_data['averageVolume']}")
 
-
-                df = create_price_dataframe(scrape_google_data(stock_ticker))
+                interval = st.selectbox('Pick time interval',
+                ('one day', 'one month'))
+                df = create_price_dataframe(scrape_google_data(stock_ticker, interval), interval)
 
                 # Define the lower and upper y bounds
                 ymin = np.floor(df['price'].min())
@@ -204,7 +217,7 @@ if login_info:
                 ).interactive()
 
                 #streamlit title
-                st.title(stock_ticker)
+                st.subheader(stock_ticker)
 
                 # Display the chart in Streamlit
                 st.altair_chart(chart, use_container_width=True)
@@ -251,9 +264,11 @@ if login_info:
      
         for email in os.listdir("./user_assets"):
             print(calculate_total_assets(email))
-            emails.append(email)
+        #     # emails.append(email)
             
-        sorted_emails = sorted(emails, key=get_total_assets)
-        print(sorted_emails)
+        # # sorted_emails = sorted(emails, key=get_total_assets)
+        # # print(sorted_emails)
         
         
+        st.subheader(f"Leaderboard 🎉")
+    
