@@ -66,7 +66,10 @@ def scrape_google_data(ticker, interval):
         if ("USD" in str_script and ((f'[[[["{ticker}","{exchange_df[ticker]["Exchange"]}"]' in str_script) or (f"[[[['{ticker}','{exchange_df[ticker]['Exchange']}']" in str(script)) or (f"[[[['{ticker}', '{exchange_df[ticker]['Exchange']}']" in str_script) or (f'[[[["{ticker}", "{exchange_df[ticker]["Exchange"]}"]' in str_script))):
             valid_scripts.append(str_script)
     valid_scripts.sort(key=len)
-    if interval == "one month":
+    if len(valid_scripts) == 0:
+        st.warning("Not enough data to visualize")
+        return
+    elif interval == "one month":
         #months is the script tag with the second longest length
         max_script = valid_scripts[-2]
     elif interval == "one day":
@@ -339,24 +342,26 @@ if authentication_status:
 
                     interval = st.selectbox('Pick time interval',
                     ('one day', 'one month'))
-                    df = create_price_dataframe(scrape_google_data(stock_ticker, interval), interval)
+                    r = scrape_google_data(stock_ticker, interval)
+                    if r != None:         
+                        df = create_price_dataframe(scrape_google_data(stock_ticker, interval), interval)
 
-                    # Define the lower and upper y bounds
-                    ymin = np.floor(df['price'].min())
-                    ymax = np.ceil(df['price'].max())
+                        # Define the lower and upper y bounds
+                        ymin = np.floor(df['price'].min())
+                        ymax = np.ceil(df['price'].max())
 
-                    # Create the chart
-                    chart = alt.Chart(df).mark_line().encode(
-                        x='datetime:T',
-                        y=alt.Y('price:Q', scale=alt.Scale(domain=(ymin, ymax))),
-                        tooltip=['datetime:T', 'price:Q']
-                    ).interactive()
+                        # Create the chart
+                        chart = alt.Chart(df).mark_line().encode(
+                            x='datetime:T',
+                            y=alt.Y('price:Q', scale=alt.Scale(domain=(ymin, ymax))),
+                            tooltip=['datetime:T', 'price:Q']
+                        ).interactive()
 
-                    #streamlit title
-                    st.subheader(stock_ticker)
+                        #streamlit title
+                        st.subheader(stock_ticker)
 
-                    # Display the chart in Streamlit
-                    st.altair_chart(chart, use_container_width=True)
+                        # Display the chart in Streamlit
+                        st.altair_chart(chart, use_container_width=True)
                 else:
                     stock_prices = get_fake_stock_prices(stock_ticker)
                     df = pd.DataFrame({'price': stock_prices, 'time': range(1, len(stock_prices)+1)})
