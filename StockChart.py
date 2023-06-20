@@ -242,7 +242,13 @@ def load_data(rank, email, total_assets):
         }
     )
 
-
+def load_fake_stocks(names, stocks):
+    return pd.DataFrame(
+        {
+            "Name ": names,
+            "Ticker ": stocks
+        }
+    )
 
 
 placeholder = st.empty()
@@ -473,7 +479,43 @@ if authentication_status:
             hide_index=True
         )
     if selected == "Stock Directory":
-        st.title(f"Special Stocks")
+        st.title(f"Fake Stocks")
+        
+        stock_dir = open("./fake_stocks/stock_dir.txt", "r").read().strip()
+        all_stocks = stock_dir.split("\n")
+        
+        names_lst = []
+        fake_stocks = []
+        for stock in all_stocks:
+            
+            if stock != "IIE" and stock != "WWW":
+                fake_stocks.append(stock)
+            if stock == "WW":
+                names_lst.append("Wang's Wheat")
+            elif stock == "BR":
+                names_lst.append("Ben & Respass' Ice Cream")
+            elif stock == "JJ":
+                names_lst.append("Josh's Jellybeans")
+            elif stock == "RI":
+                names_lst.append("Rohan Industries")
+            elif stock == "CC":
+                names_lst.append("Chris' Caps") 
+            elif stock == "JJA":
+                names_lst.append("Jaden's Jams")
+            elif stock == "BB":
+                names_lst.append("BCA Bites")
+            elif stock == "MM":
+                names_lst.append("Mark's Modeling")
+            elif stock == "PCBT":
+                names_lst.append("Post-Calculus BC Therapy")       
+        
+        df = load_fake_stocks(names_lst, fake_stocks)
+        st.dataframe(
+            df, 
+            use_container_width=True,
+            hide_index=True
+        )
+        
         
 elif authentication_status == False:
     st.error("Username/password is incorrect")
