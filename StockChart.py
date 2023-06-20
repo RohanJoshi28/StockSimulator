@@ -175,7 +175,6 @@ def short_sell(user_email, stock_ticker, num_short_sell_shares):
 
     if stock_ticker in user_file_json["shorted_stocks"]:
         user_file_json["shorted_stocks"][stock_ticker] += num_short_sell_shares
-        print(user_file_json["shorted_stocks"][stock_ticker])
     else:
         user_file_json["shorted_stocks"][stock_ticker] = num_short_sell_shares
     user_file_json["total_cash"] += get_stock_value(stock_ticker) * num_short_sell_shares
