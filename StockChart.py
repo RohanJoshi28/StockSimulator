@@ -130,6 +130,14 @@ def calculate_total_assets(email):
         if stock_dictionary[key] == 0:
             continue
         total_assets += float(stock_dictionary[key]) * get_stock_value(key)
+    
+    if "shorted_stocks" in user_file_json:
+        shorted_stock_dictionary = user_file_json["shorted_stocks"]
+        for key in shorted_stock_dictionary.keys():
+            if shorted_stock_dictionary[key] == 0:
+                continue
+            total_assets -= float(shorted_stock_dictionary[key]) * get_stock_value(key)
+
     if total_assets is not None:
         st.session_state["total_assets"] = str(total_assets)
     return total_assets
@@ -156,6 +164,44 @@ def buy_stock(user_email, stock_ticker, num_buy_shares):
         user_file.write(json.dumps(user_file_json))
         user_file.close()
         storage.child(f"user_assets/{user_email}").put(f"./user_assets/{user_email}")
+
+def short_sell(user_email, stock_ticker, num_short_sell_shares):
+    num_short_sell_shares = int(num_short_sell_shares)
+    storage.child(f"user_assets/{user_email}").download(path="gs://stock-storage-54197.appspot.com", filename=f"./user_assets/{user_email}")
+    user_file = open(f"./user_assets/{user_email}", "r")
+    user_file_json = json.loads(user_file.read())
+    if "shorted_stocks" not in user_file_json:
+        user_file_json["shorted_stocks"] = {}
+
+    if stock_ticker in user_file_json["shorted_stocks"]:
+        user_file_json["shorted_stocks"][stock_ticker] += num_short_sell_shares
+        print(user_file_json["shorted_stocks"][stock_ticker])
+    else:
+        user_file_json["shorted_stocks"][stock_ticker] = num_short_sell_shares
+    user_file_json["total_cash"] += get_stock_value(stock_ticker) * num_short_sell_shares
+    user_file.close()
+    user_file = open(f"./user_assets/{user_email}", "w+")
+    user_file.write(json.dumps(user_file_json))
+    user_file.close()
+    storage.child(f"user_assets/{user_email}").put(f"./user_assets/{user_email}")
+
+def buy_back(user_email, stock_ticker, num_buy_back_shares):
+    num_buy_back_shares = int(num_buy_back_shares)
+    storage.child(f"user_assets/{user_email}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{user_email}")
+    user_file = open(f"./user_assets/{user_email}", "r")
+    user_file_json = json.loads(user_file.read())
+    if stock_ticker in user_file_json["shorted_stocks"] and user_file_json["shorted_stocks"][stock_ticker] >= num_buy_back_shares:
+        st.session_state["not_enough_shorted_stock"] = False
+        user_file_json["total_cash"] -= get_stock_value(stock_ticker) * num_buy_back_shares
+        user_file_json["shorted_stocks"][stock_ticker] -= num_buy_back_shares
+        user_file.close()
+        user_file = open(f"./user_assets/{user_email}", "w+")
+        user_file.write(json.dumps(user_file_json))
+        user_file.close()
+        storage.child(f"user_assets/{user_email}").put(f"./user_assets/{user_email}")
+    else:
+        st.session_state["not_enough_shorted_stock"] = True
+
 
 def sell_stock(user_email, stock_ticker, num_sell_shares):
     num_sell_shares = int(num_sell_shares)
@@ -341,6 +387,36 @@ if authentication_status:
 
                 if "not_enough_stock" in st.session_state and st.session_state["not_enough_stock"] == True:
                     st.warning("You don't have any stock, so you cannot sell")
+
+                st.text("")
+                st.text("")
+
+                col1, col2, col3, col4, col5 = st.columns(5)
+                with col2:
+                    num_short_sell_shares = st.text_input('Shares', "1", key="short_sell_shares")
+                    short_sell_disable = not num_short_sell_shares.isdigit()
+            
+                with col1:
+                    st.button(f"Short", type="primary", on_click=short_sell, args=(user_email, stock_ticker,num_short_sell_shares,), disabled=short_sell_disable)
+
+                if short_sell_disable:
+                    st.warning("Please enter a valid share number for short selling ")
+            
+                with col5:
+                    num_buy_back_shares = st.text_input('Shares', "1", key="buy_back_shares")
+                    buy_back_disable = not num_buy_back_shares.isdigit()
+            
+                with col4:
+                    st.button(f"Buy back", type="primary", on_click=buy_back, args=(user_email, stock_ticker,num_buy_back_shares,), disabled=buy_back_disable)
+
+                if buy_back_disable:
+                    st.warning("Please enter a valid share number for buying back shares ")
+                
+                if "not_enough_shorted_stock" in st.session_state and st.session_state["not_enough_shorted_stock"] == True:
+                    st.warning("You don't have enough shorted stock that you can buy back")
+
+
+
 
         st.text("")
         st.text("")
