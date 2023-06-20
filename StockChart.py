@@ -198,6 +198,8 @@ def load_data(rank, email, total_assets):
     )
 
 
+
+
 placeholder = st.empty()
 if ("authentication_status" not in st.session_state) or (st.session_state["authentication_status"] is None):
     login_type = placeholder.selectbox('Login or Register', ('Login', 'Register'))
@@ -239,8 +241,8 @@ if authentication_status:
     
     selected = option_menu(
         menu_title="InvestSimulator",
-        options=["Home", "Leaderboard"],
-        icons=["house", "clipboard-data-fill"],
+        options=["Home", "Leaderboard", "Stock Directory"],
+        icons=["house-door-fill", "clipboard-data-fill", "journal-bookmark-fill"],
         menu_icon="currency-exchange",
         default_index=0,
         orientation="horizontal",
@@ -395,6 +397,8 @@ if authentication_status:
             use_container_width=True,
             hide_index=True
         )
+    if selected == "Stock Directory":
+        st.title(f"Special Stocks")
         
 elif authentication_status == False:
     st.error("Username/password is incorrect")
