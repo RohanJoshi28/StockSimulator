@@ -76,7 +76,6 @@ smmap==5.0.0
 sniffio==1.3.0
 soupsieve==2.4.1
 streamlit==1.23.1
-streamlit-google-oauth @ git+https://github.com/hunkim/streamlit-google-oauth@5feb84d2b8298f0a512a017bf7ffa9672b449342
 streamlit-option-menu==0.3.6
 tenacity==8.2.2
 toml==0.10.2

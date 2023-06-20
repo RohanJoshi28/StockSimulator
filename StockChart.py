@@ -6,7 +6,6 @@ import requests
 import json
 import numpy as np
 from dotenv import load_dotenv
-import streamlit_google_oauth as oauth
 import os
 import yfinance as yahooFinance
 from streamlit_option_menu import option_menu
@@ -128,6 +127,8 @@ def calculate_total_assets(email):
     total_assets = user_file_json["total_cash"]
     stock_dictionary = user_file_json["stocks"]
     for key in stock_dictionary.keys():
+        if stock_dictionary[key] == 0:
+            continue
         total_assets += float(stock_dictionary[key]) * get_stock_value(key)
     if total_assets is not None:
         st.session_state["total_assets"] = str(total_assets)
@@ -135,7 +136,7 @@ def calculate_total_assets(email):
 
 def buy_stock(user_email, stock_ticker, num_buy_shares):
     num_buy_shares = int(num_buy_shares)
-    storage.child(f"user_assets/{user_email}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{user_email}")
+    storage.child(f"user_assets/{user_email}").download(path="gs://stock-storage-54197.appspot.com", filename=f"./user_assets/{user_email}")
     user_file = open(f"./user_assets/{user_email}", "r")
     user_file_json = json.loads(user_file.read())
     total_cash = user_file_json["total_cash"]
@@ -359,22 +360,34 @@ if authentication_status:
         usernames = list(config["credentials"]["usernames"].keys())
         user_assets = []
         for username in usernames:
-            try:    
-                storage.child(f"user_assets/{username}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{username}")
-                assets = calculate_total_assets(f"./user_assets/{username}")
-                user_assets.append([username, assets])
-            except Exception as e:
+            storage.child(f"user_assets/{username}").download(path="gs://stock-storage-54197.appspot.com/user_assets", filename=f"./user_assets/{username}")
+            if not os.path.isfile(f"./user_assets/{username}"):
                 user_assets.append([username, 100000])
+            else:
+                assets = calculate_total_assets(username)
+                user_assets.append([username, assets])
 
-        sorted_user_assets = sorted(user_assets, key=lambda user_asset: user_asset[1])
 
+        sorted_user_assets = sorted(user_assets, key=lambda user_asset: user_asset[1], reverse=True)
         ranked_usernames = []
         ranked_assets = []
         for user_asset in sorted_user_assets:
             ranked_usernames.append(user_asset[0])
-            ranked_assets.append(user_asset[1])
+            ranked_assets.append(round(user_asset[1], 2))
 
-        rank = list(range(1, len(sorted_user_assets) + 1))
+        rank = []
+        curr_rank = 1
+        prev_asset = 0
+        for username, asset in zip(ranked_usernames, ranked_assets):
+            if prev_asset == 0 or prev_asset == asset:
+                rank.append(curr_rank)
+                prev_asset = asset
+            else:
+                curr_rank+=1
+                rank.append(curr_rank)
+                prev_asset = asset
+
+        #rank = list(range(1, len(sorted_user_assets) + 1))
         st.subheader(f"Leaderboard 🎉")
         df = load_data(rank, ranked_usernames, ranked_assets)
         st.dataframe(
