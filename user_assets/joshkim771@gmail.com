@@ -1,1 +1,1 @@
-{"total_cash": 98630.68, "stocks": {"MSFT": 4}}
+{"total_cash": 98288.34999999999, "stocks": {"MSFT": 5}}

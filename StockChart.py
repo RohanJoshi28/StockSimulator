@@ -32,6 +32,9 @@ firebase_config = {
 firebase = pyrebase.initialize_app(firebase_config)
 storage = firebase.storage()
 
+storage.child(f"/fake_stocks/stock_dir.txt").download(path='gs://stock-storage-54197.appspot.com/', filename=f"fake_stocks/stock_dir.txt")
+fake_stocks = open("fake_stocks/stock_dir.txt", "r").read().split("\n")
+
 storage.child(f"config.yaml").download(path="gs://stock-storage-54197.appspot.com/", filename=f"config.yaml")
 with open('./config.yaml') as file:
     config = yaml.load(file, Loader=SafeLoader)
@@ -73,6 +76,9 @@ def scrape_google_data(ticker, interval):
     return data
 
 def get_stock_value(ticker):
+    if ticker in fake_stocks:
+        return get_fake_stock_prices(ticker)[-1]
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36"
     }
@@ -91,6 +97,11 @@ def get_stock_value(ticker):
 
     price = json.loads(max_script[int(max_script.index("[")):int(max_script.rfind("]")+1)])[0][0][3][0][1:][0][-1][1][0]
     return float(price)
+
+def get_fake_stock_prices(ticker):
+    storage.child(f"/fake_stocks/{ticker}.txt").download(path='gs://stock-storage-54197.appspot.com/', filename=f"./fake_stocks/{ticker}.txt")
+    stock_prices = [float(i) for i in open(f"./fake_stocks/{ticker}.txt", "r").read().split(" ")[-100:]]
+    return stock_prices
 
 def create_price_dataframe(data, interval):
     if interval == "one day":
@@ -240,53 +251,70 @@ if authentication_status:
         stock_ticker = st.text_input('Enter your stock ticker', '')
 
         if stock_ticker!="":
-            if stock_ticker not in exchange_df:
+            if stock_ticker in fake_stocks:
+                fake_stock = True
+            else:
+                fake_stock = False
+
+            if (stock_ticker not in exchange_df) and (stock_ticker not in fake_stocks):
                 st.warning("Stock ticker does not exist in NYSE or NASDAQ")
             else:
-                with st.sidebar:
-                    st.subheader("Stock Statistics")
-                    st.markdown(f'''
-                    <style>
-                        section[data-testid="stSidebar"] .css-ng1t4o {{width: 14rem;}}
-                        section[data-testid="stSidebar"] .css-1d391kg {{width: 14rem;}}
-                    </style>
-                    ''',unsafe_allow_html=True)
-                    ticker_data = yahooFinance.Ticker(stock_ticker).info
-                    st.text(f"Market Cap: {ticker_data['marketCap']}")
-                    st.divider()
-                    st.text(f"PE ratio: (TTM): {round(float(ticker_data['trailingPE']), 2)}")
-                    st.divider()
-                    st.text(f"Beta (5Y Monthly): {round(float(ticker_data['beta']), 2)}")
-                    st.divider()
-                    st.text(f"Open: {round(float(ticker_data['open']), 2)}")
-                    st.divider()
-                    st.text(f"Previous Close: {round(float(ticker_data['previousClose']), 2)}")
-                    st.divider()
-                    st.text(f"Volume: {ticker_data['volume']}")
-                    st.divider()
-                    st.text(f"Average Volume: {ticker_data['averageVolume']}")
+                if fake_stock == False:
+                    with st.sidebar:
+                        st.subheader("Stock Statistics")
+                        st.markdown(f'''
+                        <style>
+                            section[data-testid="stSidebar"] .css-ng1t4o {{width: 14rem;}}
+                            section[data-testid="stSidebar"] .css-1d391kg {{width: 14rem;}}
+                        </style>
+                        ''',unsafe_allow_html=True)
+                        ticker_data = yahooFinance.Ticker(stock_ticker).info
+                        st.text(f"Market Cap: {ticker_data['marketCap']}")
+                        st.divider()
+                        st.text(f"PE ratio: (TTM): {round(float(ticker_data['trailingPE']), 2)}")
+                        st.divider()
+                        st.text(f"Beta (5Y Monthly): {round(float(ticker_data['beta']), 2)}")
+                        st.divider()
+                        st.text(f"Open: {round(float(ticker_data['open']), 2)}")
+                        st.divider()
+                        st.text(f"Previous Close: {round(float(ticker_data['previousClose']), 2)}")
+                        st.divider()
+                        st.text(f"Volume: {ticker_data['volume']}")
+                        st.divider()
+                        st.text(f"Average Volume: {ticker_data['averageVolume']}")
 
-                interval = st.selectbox('Pick time interval',
-                ('one day', 'one month'))
-                df = create_price_dataframe(scrape_google_data(stock_ticker, interval), interval)
+                    interval = st.selectbox('Pick time interval',
+                    ('one day', 'one month'))
+                    df = create_price_dataframe(scrape_google_data(stock_ticker, interval), interval)
 
-                # Define the lower and upper y bounds
-                ymin = np.floor(df['price'].min())
-                ymax = np.ceil(df['price'].max())
+                    # Define the lower and upper y bounds
+                    ymin = np.floor(df['price'].min())
+                    ymax = np.ceil(df['price'].max())
 
-                # Create the chart
-                chart = alt.Chart(df).mark_line().encode(
-                    x='datetime:T',
-                    y=alt.Y('price:Q', scale=alt.Scale(domain=(ymin, ymax))),
-                    tooltip=['datetime:T', 'price:Q']
-                ).interactive()
+                    # Create the chart
+                    chart = alt.Chart(df).mark_line().encode(
+                        x='datetime:T',
+                        y=alt.Y('price:Q', scale=alt.Scale(domain=(ymin, ymax))),
+                        tooltip=['datetime:T', 'price:Q']
+                    ).interactive()
 
-                #streamlit title
-                st.subheader(stock_ticker)
+                    #streamlit title
+                    st.subheader(stock_ticker)
 
-                # Display the chart in Streamlit
-                st.altair_chart(chart, use_container_width=True)
-
+                    # Display the chart in Streamlit
+                    st.altair_chart(chart, use_container_width=True)
+                else:
+                    stock_prices = get_fake_stock_prices(stock_ticker)
+                    df = pd.DataFrame({'price': stock_prices, 'time': range(1, len(stock_prices)+1)})
+                    ymin = np.floor(df['price'].min())
+                    ymax = np.ceil(df['price'].max())
+                    chart = alt.Chart(df).mark_line().encode(
+                        x='time',
+                        y=alt.Y('price', scale=alt.Scale(domain=(ymin, ymax))),
+                        tooltip=['time', 'price']
+                    ).interactive()
+                    st.altair_chart(chart, use_container_width=True)
+                    
                 col1, col2, col3, col4, col5 = st.columns(5)
                 with col2:
                     num_buy_shares = st.text_input('Shares', "1", key="buy_shares")
@@ -306,8 +334,6 @@ if authentication_status:
                         st.button(f"Sell {stock_ticker}", type="primary", on_click=sell_stock, args=(user_email, stock_ticker, num_sell_shares,), disabled=sell_disable)
                 if sell_disable:
                     st.warning("Please enter a valid share number for selling")
-                    
-
 
                 if "not_enough_cash" in st.session_state and st.session_state["not_enough_cash"] == True:
                     st.warning("You do not have enough cash to buy this stock.")
@@ -359,5 +385,6 @@ if authentication_status:
         
 elif authentication_status == False:
     st.error("Username/password is incorrect")
+
 
     
