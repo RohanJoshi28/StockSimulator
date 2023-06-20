@@ -503,7 +503,7 @@ if authentication_status:
                 names_lst.append("Josh's Jellybeans")
             elif stock == "RI":
                 names_lst.append("Rohan Industries")
-            elif stock == "CC":
+            elif stock == "CCP":
                 names_lst.append("Chris' Caps") 
             elif stock == "JJA":
                 names_lst.append("Jaden's Jams")
@@ -512,7 +512,9 @@ if authentication_status:
             elif stock == "MM":
                 names_lst.append("Mark's Modeling")
             elif stock == "PCBT":
-                names_lst.append("Post-Calculus BC Therapy")       
+                names_lst.append("Post-Calculus BC Therapy")   
+            elif stock == "KWB":    
+                names_lst.append("Kyowob Entertainment")
         
         df = load_fake_stocks(names_lst, fake_stocks)
         st.dataframe(
