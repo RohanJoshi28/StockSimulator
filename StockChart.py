@@ -77,42 +77,51 @@ def scrape_google_data(ticker, interval):
 def get_stock_value(ticker):
     if ticker in fake_stocks:
         return get_fake_stock_prices(ticker)[-1]
+    stock_prices = yahooFinance.Ticker(ticker).history(interval="1m", period="1d")
+    return stock_prices[-1]
+    # headers = {
+    #     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36"
+    # }
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36"
-    }
+    # html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[ticker]['Exchange']}", headers=headers, timeout=30)
 
-    html = requests.get(f"https://www.google.com/finance/quote/{ticker}:{exchange_df[ticker]['Exchange']}", headers=headers, timeout=30)
+    # soup = BeautifulSoup(html.text, 'html.parser')
 
-    soup = BeautifulSoup(html.text, 'html.parser')
+    # max_length = float("-inf")
+    # max_script = None
+    # for script in soup.find_all("script"):
+    #     if ("USD" in str(script) and ((f'[[[["{ticker}","{exchange_df[ticker]["Exchange"]}"]' in str(script)) or (f"[[[['{ticker}','{exchange_df[ticker]['Exchange']}']" in str(script)) or (f"[[[['{ticker}', '{exchange_df[ticker]['Exchange']}']" in str(script)) or (f'[[[["{ticker}", "{exchange_df[ticker]["Exchange"]}"]' in str(script)))):
+    #         if len(str(script)) > max_length:
+    #             max_script = str(script)
+    #             max_length = len(str(script))
 
-    max_length = float("-inf")
-    max_script = None
-    for script in soup.find_all("script"):
-        if ("USD" in str(script) and ((f'[[[["{ticker}","{exchange_df[ticker]["Exchange"]}"]' in str(script)) or (f"[[[['{ticker}','{exchange_df[ticker]['Exchange']}']" in str(script)) or (f"[[[['{ticker}', '{exchange_df[ticker]['Exchange']}']" in str(script)) or (f'[[[["{ticker}", "{exchange_df[ticker]["Exchange"]}"]' in str(script)))):
-            if len(str(script)) > max_length:
-                max_script = str(script)
-                max_length = len(str(script))
-
-    price = json.loads(max_script[int(max_script.index("[")):int(max_script.rfind("]")+1)])[0][0][3][0][1:][0][-1][1][0]
-    return float(price)
+    # price = json.loads(max_script[int(max_script.index("[")):int(max_script.rfind("]")+1)])[0][0][3][0][1:][0][-1][1][0]
+    # return float(price)
 
 def get_fake_stock_prices(ticker):
     storage.child(f"/fake_stocks/{ticker}.txt").download(path='gs://stock-storage-54197.appspot.com/', filename=f"./fake_stocks/{ticker}.txt")
     stock_prices = [float(i) for i in open(f"./fake_stocks/{ticker}.txt", "r").read().split(" ")[-100:]]
     return stock_prices
 
-def create_price_dataframe(data, interval):
-    if interval == "one day":
-    # Convert your data to a DataFrame
+def create_price_dataframe(ticker, interval):
+    start_date = "2023-05-22"
+    end_date = "2023-06-16"
+    
+
+    # Get the data
+    if interval == "one month":
+        stock_prices = yahooFinance.Ticker(ticker).history(interval="1d", period="1mo")
+
         df = pd.DataFrame({
-            'datetime': [pd.Timestamp(year=d[0][0], month=d[0][1], day=d[0][2], hour=d[0][3], minute=d[0][4]) for d in data],
-            'price': [d[1][0] for d in data],
+            'datetime': list(stock_prices['Close'].index),
+            'price': stock_prices['Close']
         })
-    elif interval == "one month":
+    elif interval == 'one day':
+        stock_prices = yahooFinance.Ticker(ticker).history(interval="1m", period="1d")
+
         df = pd.DataFrame({
-            'datetime': [pd.Timestamp(year=d[0][0], month=d[0][1], day=d[0][2]) for d in data],
-            'price': [d[1][0] for d in data],
+            'datetime': list(stock_prices['Close'].index),
+            'price': stock_prices['Close']
         })
         
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -339,8 +348,7 @@ if authentication_status:
 
                     interval = st.selectbox('Pick time interval',
                     ('one day', 'one month'))
-                    df = create_price_dataframe(scrape_google_data(stock_ticker, interval), interval)
-
+                    df = create_price_dataframe(stock_ticker, interval)
                     # Define the lower and upper y bounds
                     ymin = np.floor(df['price'].min())
                     ymax = np.ceil(df['price'].max())
